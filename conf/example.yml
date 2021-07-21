@@ -1,0 +1,7 @@
+---
+some:
+  value: val
+  flattened:
+  - name: one
+  - name: two
+
