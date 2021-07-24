@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-ranOrSourced_test3=$([[ $_ != $0 ]] && echo "source" || echo -n "exec") # has to be first line of script
+ranOrSourced=$([[ $_ != $0 ]] && echo "source" || echo -n "exec") # has to be first line of script
+TRACING+=("run/test3.sh")
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-source "${SCRIPTDIR}/../lib/00_init.sh"
-TRACE "${ranOrSourced_test3} run/test3.sh"
+source "${SCRIPTDIR}/0BootstrapFuncs.sh"
+source "${SCRIPTDIR}/$(backToRepoDir "${TRACING[-1]}")/lib/00_init.sh" "$@"
+TRACE "${ranOrSourced} ${TRACING[-1]} $* ..."
 ## ===========================================================================
+
 
 INFOHIGHLIGHT "in $(basename ${BASH_SOURCE[0]})"
 for arg in "${ARGS[@]}" ; do INFO "'${arg}'"; done
@@ -16,4 +19,4 @@ function aNewFunc() {
 aNewFunc
 
 ## ===========================================================================
-TRACE "${ranOrSourced_test3} run/test3.sh done."
+TRACE "run/test3.sh done."

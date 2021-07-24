@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-ranOrSourced_test2=$([[ $_ != $0 ]] && echo "source" || echo -n "exec") # has to be first line of script
+ranOrSourced=$([[ $_ != $0 ]] && echo "source" || echo -n "exec") # has to be first line of script
+TRACING+=("run/test2.sh")
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-source "${SCRIPTDIR}/../lib/00_init.sh"
-TRACE "${ranOrSourced_test2} run/test2.sh ..."
+source "${SCRIPTDIR}/0BootstrapFuncs.sh"
+source "${SCRIPTDIR}/$(backToRepoDir "${TRACING[-1]}")/lib/00_init.sh" "$@"
+TRACE "${ranOrSourced} ${TRACING[-1]} $* ..."
 ## ===========================================================================
+
 
 INFOHIGHLIGHT "in $(basename ${BASH_SOURCE[0]})"
 for arg in "${ARGS[@]}" ; do INFO "'${arg}'"; done
@@ -33,10 +36,10 @@ INFOHIGHLIGHT "highlighted info line islong='${islong}'"
 FINER "should be logged!!!"
 FINEST "should be logged!!!"
 INFO "test before run    test3"
-${REPODIR}/run/test3.sh
+${REPODIR}/run/test3.sh "$targetEnvSmallCaps"
 DEBUG "test after run    test3"
 echo "$(color PURPLE "resetting logLevel to: $OLDLOGLEVEL")"
 setLogLevel $OLDLOGLEVEL
 
 ## ===========================================================================
-TRACE "${ranOrSourced_test2} run/test2.sh done."
+TRACE "run/test2.sh done."

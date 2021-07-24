@@ -1,5 +1,4 @@
-#!/usr/bin/env bash
-# this file is only to be sourced, not executed
+# shellcheck shell=bash
 
 # variables to check if already sourced have to be UNIQUE WITHIN THE WHOLE PROJECT!
 if [[ ${HAS_ALREADY_BEEN_SOURCED__00_init:=1} = 0 ]]; then return ; fi
@@ -11,19 +10,25 @@ REPODIR=${SCRIPTDIR%/*}
 cd "${REPODIR}" || exit
 
 dateExe="date"
+sedExe="sed"
 if [[ $(uname) == "Darwin" ]]; then
  dateExe="gdate"
+ sedExe="gsed"
 fi
 STARTTIMEMILLIS=$(($($dateExe +'%s%N') / 1000000)) # datetime from nano seconds to in milliseconds
 STARTDATE=$($dateExe +'%Y-%m-%d')
 STARTTIME=$($dateExe +'%H:%M:%S')
+FILE_DATETIME="$(date +%Y%m%d_%H%M%S)"
+FILEPOSTFIX_STARTDATETIME="${FILE_DATETIME}"
 
-## generate needed transient directories
-export GENERATEDDIR="${REPODIR}/generated"
-mkdir -p generated/conf/bash
-mkdir -p generated/conf/ytt
-mkdir -p tmp
-
+function upperFirstChar() {
+    local s="$*"
+    echo -n "${s^}"
+}
+function lowerFirstChar() {
+    local s="$*"
+    echo -n "${s,}"
+}
 function stripRepoDir() {
     local callingScript
     #echo "DEBUG: ${BASH_SOURCE[*]}"
@@ -33,9 +38,6 @@ function stripRepoDir() {
     callingScript="${callingScript#/}" # cut off trailing slash (if any)
     echo -n -e "${callingScript}"
 }
-if [[ ${BASH_SOURCE[1]:0:1} = '/' ]]; then # should only be printed out if a script executes (not sourceing) another script
-    echo "sourcing lib/00_init.sh (because script was executed, not sourced in $(stripRepoDir ${BASH_SOURCE[1]}))"
-fi
 
 export COLOR_RESET='\e[0m' # No COL
 export COLOR_WHITE='\e[1;37m'
@@ -64,6 +66,10 @@ export COLOR_BACK_YELLOW='\e[1;43m'
 export COLOR_GRAY='\e[0;30m'
 export COLOR_LIGHT_GRAY='\e[0;37m'
 export COLOR_BACK_GRAY='\e[1;40m'
+
+if [[ ${BASH_SOURCE[1]:0:1} = '/' ]]; then # should only be printed out if a script executes (not sourceing) another script
+    echo -e "${COLOR_RED}sourcing lib/00_init.sh (because script was executed, not sourced in $(stripRepoDir ${BASH_SOURCE[1]}))${COLOR_RESET}"
+fi
 
 function color() {
     local theColor=$1 ; shift
@@ -153,17 +159,22 @@ finish() {
     local from
     from=$(stripRepoDir ${BASH_SOURCE[1]})
     if [[ errorcode -eq 0 ]]; then
-        INFO "finish() ok! ($from) elapsedTime: $(timeElapsed)"
+        printf "$(color LIGHTGRAY $($dateExe +'%H:%M:%S') %5s $(timeElapsed) finish\(\) $from ok!  elapsedTime: $(timeElapsed)\\n)" "INFO" 
     else
-        FATAL "$from finish() abnormaly!  elapsedTime: $(timeElapsed) (errorcode: $errorcode)"
+        printf "$(color RED $($dateExe +'%H:%M:%S') %5s $(timeElapsed) finish\(\) $from abnormaly!  elapsedTime: $(timeElapsed) \(errorcode: $errorcode\)\\n)" "FATAL" 
     fi
     return $errorcode
 }
 
 
 trap finish EXIT
-set -e # exit the script on first error (command not returning $?=0)
-set -u # errors if an variable is referenced before being set
+# set -E # better ERR trap handling
+# set -e # exit the script on first error (command not returning $?=0)
+# set -u # errors if an variable is referenced before being set
+# set -o pipefail # fail fast if an erroneous command pipes to downstream commands
+export DEFAULT_SHELLOPTS="-Eeuo pipefail" # https://vaneyckt.io/posts/safer_bash_scripts_with_set_euxo_pipefail/
+set ${DEFAULT_SHELLOPTS}
+
 
 
 declare -A LOGLEVELSHASH=( 
@@ -194,39 +205,42 @@ function TRACE() {
     >&2 printf "$($dateExe +'%H:%M:%S') %5s $(timeElapsed) $*\n" "TRACE"
 }
 function FINEST() {
-    local logLevel="FINEST" ; if [[ ${LOGLEVELSHASH[$logLevel]} -gt $LOGLEVELINT ]]; then return ; fi
+    local logLevel="FINEST" ; if [[ ! -z $LOGLEVELINT ]] && [[ ${LOGLEVELSHASH[$logLevel]} -gt $LOGLEVELINT ]]; then return ; fi
     >&2 printf "%s\n" "$(LOGPrefix FINEST)$*"
 }
 function FINER() {
-    local logLevel="FINER" ; if [[ ${LOGLEVELSHASH[$logLevel]} -gt $LOGLEVELINT ]]; then return ; fi
+    local logLevel="FINER" ; if [[ ! -z $LOGLEVELINT ]] && [[ ${LOGLEVELSHASH[$logLevel]} -gt $LOGLEVELINT ]]; then return ; fi
     >&2 printf "%s\n" "$(LOGPrefix FINER)$*"
 }
 function FINE() {
-    local logLevel="FINE" ; if [[ ${LOGLEVELSHASH[$logLevel]} -gt $LOGLEVELINT ]]; then return ; fi
+    local logLevel="FINE" ; if [[ ! -z $LOGLEVELINT ]] && [[ ${LOGLEVELSHASH[$logLevel]} -gt $LOGLEVELINT ]]; then return ; fi
     >&2 printf "%s\n" "$(LOGPrefix FINE)$*"
 }
 function DEBUG() {
-    local logLevel="DEBUG" ; if [[ ${LOGLEVELSHASH[$logLevel]} -gt $LOGLEVELINT ]]; then return ; fi
+    local logLevel="DEBUG" ; if [[ ! -z $LOGLEVELINT ]] && [[ ${LOGLEVELSHASH[$logLevel]} -gt $LOGLEVELINT ]]; then return ; fi
     >&2 printf "%s\n" "$(LOGPrefix DEBUG)$(LOGMessage "$@")"
 }
 function INFO() {
-    local logLevel="INFO" ; if [[ ${LOGLEVELSHASH[$logLevel]} -gt $LOGLEVELINT ]]; then return ; fi
+    local logLevel="INFO" ; if [[ ! -z $LOGLEVELINT ]] && [[ ${LOGLEVELSHASH[$logLevel]} -gt $LOGLEVELINT ]]; then return ; fi
     printf "%s\n" "$(LOGPrefix INFO)$(LOGMessage "$@")"
 }
 function INFOHIGHLIGHT() {
-    local logLevel="INFO" ; if [[ ${LOGLEVELSHASH[$logLevel]} -gt $LOGLEVELINT ]]; then return ; fi
+    local logLevel="INFO" ; if [[ ! -z $LOGLEVELINT ]] && [[ ${LOGLEVELSHASH[$logLevel]} -gt $LOGLEVELINT ]]; then return ; fi
     printf "%s\n" "$(color LIGHTGRAY "$(LOGPrefix INFO)")$(LOGMessage "$@")"
 }
+function CALLINFO() {
+    printf "%s\n" "$(color GREEN "$@")"
+}
 function WARN() {
-    local logLevel="WARN" ; if [[ ${LOGLEVELSHASH[$logLevel]} -gt $LOGLEVELINT ]]; then return ; fi
+    local logLevel="WARN" ; if [[ ! -z $LOGLEVELINT ]] && [[ ${LOGLEVELSHASH[$logLevel]} -gt $LOGLEVELINT ]]; then return ; fi
     printf "%s\n" "$(LOGPrefix WARN)$(LOGMessage "$@")"
 }
 function ERROR() {
-    local logLevel="ERROR" ; if [[ ${LOGLEVELSHASH[$logLevel]} -gt $LOGLEVELINT ]]; then return ; fi
+    local logLevel="ERROR" ; if [[ ! -z $LOGLEVELINT ]] && [[ ${LOGLEVELSHASH[$logLevel]} -gt $LOGLEVELINT ]]; then return ; fi
     printf "%s\n" "$(LOGPrefix ERROR)$(LOGMessage "$@")"
 }
 function FATAL() {
-    local logLevel="FATAL" ; if [[ ${LOGLEVELSHASH[$logLevel]} -gt $LOGLEVELINT ]]; then return ; fi
+    local logLevel="FATAL" ; if [[ ! -z $LOGLEVELINT ]] && [[ ${LOGLEVELSHASH[$logLevel]} -gt $LOGLEVELINT ]]; then return ; fi
     printf "%s\n" "$(color RED "$(LOGPrefix FATAL)$*")"
 }
 function setLogLevel() {
@@ -240,19 +254,37 @@ function setLogLevel() {
     fi
 }
 
+if [[ ! ${HAS_ALREADY_BEEN_SOURCED__1ParseCmdLineArgs:=1} = 0 ]]; then source "${REPODIR}/run/1ParseCmdLineArgs.sh" ; fi
+
+## generate needed transient directories
+export CACHEDIR=cache
+mkdir -p cache
+export GENERATEDDIR=generated/${targetEnvSmallCaps}
+export GENCONFDIR=${GENERATEDDIR}/conf
+mkdir -p ${GENCONFDIR}/bash
+mkdir -p ${GENCONFDIR}/ytt
+export GENYTTDIR=${GENERATEDDIR}/ytt
+mkdir -p ${GENYTTDIR}
+export TMPDIR=tmp/${targetEnvSmallCaps}
+mkdir -p ${TMPDIR}
+
+shopt -s nullglob
+
+INFOHIGHLIGHT "targetEnv: ${targetEnvSmallCaps}"
 TRACE "SCRIPTDIR: ${SCRIPTDIR}"
 TRACE "REPODIR:   ${REPODIR}"
 
-echo > "${GENERATEDDIR}/conf/bash/conf.sh" # erase file contents
-echo > "${GENERATEDDIR}/conf/ytt/conf.yml" # erase file contents
-for confFile in ${REPODIR}/conf/*.yml ${REPODIR}/conf/*.yaml; do
+
+echo > "${GENCONFDIR}/bash/conf.sh" # erase file contents
+echo > "${GENCONFDIR}/ytt/conf.yml" # erase file contents
+for confFile in ${REPODIR}/conf/*.yml ${REPODIR}/conf/*.yaml ${REPODIR}/conf/${targetEnvSmallCaps}/*.yml ${REPODIR}/conf/${targetEnvSmallCaps}/*.yaml; do
     {
         echo -e "#! from $(stripRepoDir ${confFile})"
         echo -e "#@overlay/match-child-defaults missing_ok=True"
         echo -e "#@data/values"
         cat "${confFile}"
         echo -e ""
-    } >> "${GENERATEDDIR}/conf/ytt/conf.yml"
+    } >> "${GENCONFDIR}/ytt/conf.yml"
     # convert to json --> flatten hierarchy --> convert to bash var exports
     {
         echo -e "## from $(stripRepoDir ${confFile})"
@@ -261,9 +293,45 @@ for confFile in ${REPODIR}/conf/*.yml ${REPODIR}/conf/*.yaml; do
         | yq eval --prettyPrint '.' - \
         | yq eval '.. style="single"' - \
         | sed -E "s/^([^:]+): (.*)/export \1=\2/"
-    } >> "${GENERATEDDIR}/conf/bash/conf.sh"
+    } >> "${GENCONFDIR}/bash/conf.sh"
 done
-source "${GENERATEDDIR}/conf/bash/conf.sh"
+
+case $(uname) in
+  'Linux')
+    HOSTNIC=$(route | grep '^default' | grep -o '[^ ]*$')
+    HOSTIP=$(ifconfig "${HOSTNIC}" | sed -n -E 's/^.*inet ([0-9.]+).*$/\1/p')
+    ;;
+  'FreeBSD')
+    HOSTNIC=$(route | grep '^default' | grep -o '[^ ]*$')
+    HOSTIP=$(ifconfig "${HOSTNIC}" | sed -n -E 's/^.*inet ([0-9.]+).*$/\1/p')
+    ;;
+  'WindowsNT')
+    HOSTNIC=unknown
+    HOSTIP=unknown
+    ;;
+  'Darwin')
+    HOSTNIC=$(route get example.com | sed -n -E 's/^ *interface: (.*)$/\1/p')
+    HOSTIP=$(ifconfig "${HOSTNIC}" | sed -n -E 's/^.*inet ([0-9.]+).*$/\1/p')
+    ;;
+  *) ;;
+esac
+
+echo "#! from lib/00_init.sh
+#@overlay/match-child-defaults missing_ok=True
+#@data/values
+---
+HOSTIP: ${HOSTIP}
+DNSSERVER: ${HOSTIP} #! same as HOSTIP if using dnsmasq on host
+" >> "${GENCONFDIR}/ytt/conf.yml"
+echo "#! from lib/00_init.sh
+export HOSTIP=${HOSTIP}
+export DNSSERVER=${HOSTIP} #! same as HOSTIP if using dnsmasq on host
+" >> "${GENCONFDIR}/bash/conf.sh"
+
+
+source "${GENCONFDIR}/bash/conf.sh"
+
+set ${DEFAULT_SHELLOPTS}
 
 TRACE "sourced lib/00_init.sh now sourcing all other lib/*.sh ..."
 for libFile in ${REPODIR}/lib/*.sh; do source $libFile ; done

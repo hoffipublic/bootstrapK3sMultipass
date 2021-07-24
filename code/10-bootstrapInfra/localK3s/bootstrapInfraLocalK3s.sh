@@ -1,24 +1,17 @@
 #!/usr/bin/env bash
 ranOrSourced=$([[ $_ != $0 ]] && echo "source" || echo -n "exec") # has to be first line of script
-TRACING+=("run/test.sh")
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-source "${SCRIPTDIR}/0BootstrapFuncs.sh"
+TRACING+=("code/10-bootstrapInfra/localK3s/bootstrapInfraLocalK3s.sh")
 source "${SCRIPTDIR}/$(backToRepoDir "${TRACING[-1]}")/lib/00_init.sh" "$@"
 TRACE "${ranOrSourced} ${TRACING[-1]} $* ..."
 ## ===========================================================================
 
+bootstrapInfraCommonBaseDir="code/10-bootstrapInfra/common"
+source "${bootstrapInfraCommonBaseDir}/bootstrapInfraCommonCommon.sh" $K3SNODECOUNT $K3SNODENAMEPREFIX
+K3SNODES=("${COMMONNODES[@]}")
+K3SNODEIPS=("${COMMONNODEIPS[@]}")
 
-INFOHIGHLIGHT "in $(basename ${BASH_SOURCE[0]})"
-for arg in "${ARGS[@]}" ; do INFO "'${arg}'"; done
-INFO "echo --file ${OPT_FILE}"
 
-DEBUG "test before source   test2"
-source ${REPODIR}/run/test2.sh
-DEBUG "test after  source   test2"
-
-DEBUG "test before run   test2"
-${REPODIR}/run/test2.sh
-DEBUG "test after  run   test2"
 
 ## ===========================================================================
-TRACE "run/test.sh done."
+TRACE "code/10-bootstrapInfra/localK3s/bootstrapInfraLocalK3s.sh done."

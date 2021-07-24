@@ -1,0 +1,14 @@
+---
+USING_DNSMASQ_ON_HOST: true
+HOST_KUBECONFIG_FILE: "/Users/hoffi/.kube/config" #! if left empty will export KUBECONFIG=${REPODIR}tmp/{targetEnvSmallCaps}/k3s.yml
+MULTIPASSBASEOS: lts #! xenial #! lts
+K3SNODECOUNT: 2
+K3SNODENAMEPREFIX: "k3snode"
+K3SNODES:
+- name: k3snode01
+- name: k3snode02
+MYCLUSTER_DOMAIN: iac.poi #! WARNING: .local is reserved for Multicast DNS
+#! CERT_FILENAME: /etc/letsencrypt/live/${MYCLUSTER_DOMAIN}/fullchain.pem
+#! CERT_KEY_FILENAME: /etc/letsencrypt/live/${MYCLUSTER_DOMAIN}/privkey.pem
+CERT_FILENAME: ${HOME}/.ssh/${MYCLUSTER_DOMAIN}/fullchain.pem
+CERT_KEY_FILENAME: ${HOME}/.ssh/${MYCLUSTER_DOMAIN}/privkey.pem

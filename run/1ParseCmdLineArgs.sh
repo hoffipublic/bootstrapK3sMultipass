@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 
 # from https://github.com/UrsaDK/getopts_long
 # shellcheck disable=SC1091
@@ -63,6 +64,26 @@ done
 shift $(( OPTIND - 1 ))
 set +u
 [[ "${1}" == "--" ]] && shift
-set -u
+
+if [[ -z ${targetEnv} ]] && [[ -z $1 ]]; then FATAL "no targetEnv given!" ; exit 1 ; fi
+if [[ ! -z ${targetEnv} ]]; then
+    WARN "targetEnv=${targetEnv} taken from environment variable."
+    if [[ $targetEnv != $1 ]]; then FATAL "environment variable targetEnv '$targetEnv' != '$1' from first arg" ; exit 1 ; fi
+else
+    targetEnv=$1 ; shift
+fi
+targetEnv=$(upperFirstChar $targetEnv)
+targetEnvSmallCaps=$(lowerFirstChar $targetEnv)
+case $targetEnv in
+    'LocalK3s')
+        ;;
+    *)
+        FATAL "unknown targetEnv: '$targetEnv' (choose one of $(for env in ${REPODIR}/code/10-bootstrapInfra/* ; do if [[ -d "$env" ]]; then echo -n "'$(basename "$env")' " ; fi ; done))"
+        exit 1
+        ;;
+esac
+set ${DEFAULT_SHELLOPTS}
 
 ARGS=( "$@" )
+
+HAS_ALREADY_BEEN_SOURCED__1ParseCmdLineArgs=0
